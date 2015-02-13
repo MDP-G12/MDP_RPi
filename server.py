@@ -123,31 +123,34 @@ import time
 
 class WFConnector:
     def __init__(self):
+        host = '192.168.12.12'
+        port = 8008
+        family = socket.AF_INET
+        socket_type = socket.SOCK_STREAM
+
+        self.server_socket = socket.socket(family, socket_type)
+
+        # set the wf address reusable
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        print("[WF] WF Binds to host " + host + ", PORT: " + str(port))
+        self.server_socket.bind((host, port))
+
+        print("[WF] WF Server starts listening ")
+        self.server_socket.listen(1)
+
+        self.client_socket = None
+
         self.connected = False
-        self.socket = None
 
     def connect(self):
-        host = '192.168.12.12'     # Symbolic name meaning all available interfaces
-        port = 8008              # Arbitrary non-privileged port
 
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            # set the wf address reusable
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-            print("[WF] WF Binds to host " + str(host) + ", PORT: " + str(port))
-            s.bind((host, port))
-
-            print("[WF] WF Server starts listening ")
-            s.listen(1)
-
-            self.socket, addr = s.accept()
+            self.client_socket, address = self.server_socket.accept()
             print("[WF] WF Connection accepted")
-            print("[WF] Connected by", addr)
+            print("[WF] Connected by", address)
 
-            if self.socket:
-                self.connected = True
+            self.connected = True
 
         except Exception:
             print("[Error] Unable to connect wifi.")
@@ -185,7 +188,7 @@ class Server:
         self.se = SEConnector()
         self.wf_buffer = queue.Queue()
         self.se_buffer = queue.Queue()
-        self.se_buffer.put("i")
+        # self.se_buffer.put("i")
 
     def receive_wf(self):
         while True:
@@ -194,17 +197,20 @@ class Server:
                 while not self.wf.connected:
                     self.wf.connect()
                 while True:
-                    data_received = self.wf.socket.recv(1024)
+                    data_received = self.wf.client_socket.recv(1024)
                     if data_received:
                         print("[WF] Wifi received: " + data_received.decode())
                         self.se_buffer.put(data_received.decode())
+                        # For wifi testing
                         self.wf_buffer.put("Receipt from RPi: " + data_received.decode())
+                        self.wf_buffer.put("Second receipt from Rpi: " + data_received.decode())
+                        self.wf_buffer.put("Third receipt from Rpi: " + data_received.decode())
 
             except Exception:
                 print("[Error] Wifi connection loss.")
                 print(sys.exc_info())
-                if not self.wf.socket:
-                    self.wf.socket.close()
+                if not self.wf.client_socket:
+                    self.wf.client_socket.close()
                 self.wf.wf_connected = False
                 time.sleep(1)
 
@@ -235,12 +241,12 @@ class Server:
                 try:
                     data_to_send = self.wf_buffer.get()
                     print("[WF] Sending to PC: ", data_to_send)
-                    self.wf.socket.sendall(str.encode(data_to_send))
+                    self.wf.client_socket.sendall(str.encode(data_to_send))
                 except Exception:
-                    print("[Error] Unable to send data through Wifi. Resetting connection.")
+                    print("[Error] Unable to send data through Wifi. Connection loss.")
                     print(sys.exc_info())
-                    if not self.wf.socket:
-                        self.wf.socket.close()
+                    if not self.wf.client_socket:
+                        self.wf.client_socket.close()
                     self.wf.connected = False
 
     def send_se(self):
@@ -252,12 +258,10 @@ class Server:
                 try:
                     data_to_send = self.se_buffer.get()
                     print("[SE] Sending to Arduino: ", data_to_send)
-                    self.se.socket.write(str.encode(data_to_send))
+                    self.se.serial.write(str.encode(data_to_send))
                 except Exception:
-                    print("[Error] Unable to send data through Serial Port. Resetting connection.")
+                    print("[Error] Unable to send data through Serial Port. Connection loss.")
                     print(sys.exc_info())
-                    if not self.se.socket:
-                        self.se.socket.close()
                     self.se.connected = False
                     # self.se_buffer.put(data_to_send)
 
@@ -284,7 +288,7 @@ wf_receiver_thread.start()
 
 while True:
     # print("[Thread] ", threading.current_thread())
-    server.send_wf()
+    print("")
     # server.send_se()
     time.sleep(0)
 

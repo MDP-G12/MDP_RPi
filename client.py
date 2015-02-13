@@ -55,6 +55,7 @@ class Connector:
             except socket.error:
                 s.close()
                 continue
+            s.setblocking(False)
             self.socket = s
             print("[Info] Connection established.")
             print("         family: ", family)
@@ -63,20 +64,32 @@ class Connector:
             break
         if not self.socket:
             print("[Error] Unable to establish connection.")
+        else:
+            self.connected = True
 
     def send(self, msg):
-        print("[Info] Sending message: ", msg)
-        self.socket.sendall(str.encode(msg))
+        if not self.connected:
+            self.connect()
+        if self.connected:
+            print("[Info] Sending message: ", msg)
+            self.socket.sendall(str.encode(msg))
+        else:
+            print("[Error] Unable to send message. Connection loss.")
 
     def receive(self):
-        msg = self.socket.recv(1024)
-        if msg:
-            print("[Info] Received: ", msg)
-        return msg
+        if not self.connected:
+            self.connect()
+        if self.connected:
+            msg = self.socket.recv(1024)
+            if msg:
+                print("[Info] Received: ", msg)
+            return msg
+        else:
+            print("[Error] Unable to receive message. Connection loss.")
 
 
 connector = Connector()
 while True:
     dataToBeSent = input("Input string: ")
     connector.send(dataToBeSent)
-    # connector.receive()
+    connector.receive()

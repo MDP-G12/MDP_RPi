@@ -148,17 +148,17 @@ class WFConnector:
 
             if self.socket:
                 self.connected = True
+
         except Exception:
-            print("[Error] Unable to connect wifi.", sys.exc_info())
-            # del btBuff[:]
-            # del wfBuff[:]
-            # del serBuff[:]
+            print("[Error] Unable to connect wifi.")
+            print(sys.exc_info())
+            time.sleep(1)
 
 
 class SEConnector:
     def __init__(self):
         self.connected = False
-        self.socket = None
+        self.serial = None
 
     def connect(self):
         # #Clear all buffer
@@ -166,16 +166,16 @@ class SEConnector:
         # del wfBuff[:]
         # del serBuff[:]
         try:
-            self.socket = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-            time.sleep(2)
-            self.socket.write(str.encode("i"))
+            self.serial = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+            self.serial.write(str.encode("i"))
         except Exception:
             try:
-                self.socket = serial.Serial('/dev/ttyACM1', 9600, timeout=1)
-                time.sleep(2)
+                self.serial = serial.Serial('/dev/ttyACM1', 9600, timeout=1)
             except Exception:
                 print("[Error] Unable to connect serial port.")
+                print(sys.exc_info())
                 return
+        time.sleep(2)
         self.connected = True
 
 
@@ -199,24 +199,14 @@ class Server:
                         print("[WF] Wifi received: " + data_received.decode())
                         self.se_buffer.put(data_received.decode())
                         self.wf_buffer.put("Receipt from RPi: " + data_received.decode())
-                    # if (wfDataReceived[0] == "A" or wfDataReceived[0] == "a") and serConnected == True:
-                    #     serLock.acquire()
-                    #     serBuff.append(wfDataReceived[1:])
-                    #     print("[WF] serBuff now is ", serBuff)
-                    #     serLock.release()
-                    # elif (wfDataReceived[0] == "N" or wfDataReceived[0] == "n") and btConnected == True:
-                    #     btLock.acquire()
-                    #     btBuff.append(wfDataReceived[1:])
-                    #     print("[WF] btBuff now is ", btBuff)
-                    #     btLock.release()
 
-                    # else:
-                    #     print("[WF] Undefined received data from wifi")
             except Exception:
-                print("[WF] exception: ", sys.exc_info())
+                print("[Error] Wifi connection loss.")
+                print(sys.exc_info())
                 if not self.wf.socket:
                     self.wf.socket.close()
                 self.wf.wf_connected = False
+                time.sleep(1)
 
     def receive_se(self):
         while True:
@@ -225,29 +215,16 @@ class Server:
                 while not self.se.connected:
                     self.se.connect()
                 while True:
-                    data_received = self.se.socket.readline()
+                    data_received = self.se.serial.readline()
                     if data_received:
                         print("[SE] Serial received: " + data_received.decode())
                     self.wf_buffer.put(data_received.decode())
 
-                    # if (serDataReceived[0] == "N" or serDataReceived[0] == "n") and btConnected == True:
-                    #     btLock.acquire()
-                    #     btBuff.append(serDataReceived[1:])
-                    #     btLock.release()
-                    #     print "[SER] Now btBuff is ", btBuff
-                    # elif (serDataReceived[0] == "P" or serDataReceived[0] == "p") and wfConnected == True:
-                    #     serDataReceived = 'a' + serDataReceived[1:]
-                    #     wfLock.acquire()
-                    #     wfBuff.append(serDataReceived)
-                    #     wfLock.release()
-                    #     print "[SER] Now wtBuff is ", wfBuff
-                    # else:
-                    #     print "[SER] Undefined received data from Arduino"
             except Exception:
-                print("[SE] exception: ", sys.exc_info())
-                if self.se.socket:
-                    self.se.socket.close()
+                print("[Error] Serial port connection loss.")
+                print(sys.exc_info())
                 self.se.connected = False
+                time.sleep(1)
 
     def send_wf(self):
         if not self.wf.connected:
@@ -265,19 +242,6 @@ class Server:
                     if not self.wf.socket:
                         self.wf.socket.close()
                     self.wf.connected = False
-            # while True:
-            #     while (wfBuff != []):
-            #         wfDataSend = wfBuff.pop()
-            #
-            #         wfLock.acquire()
-            #         wfSocket.sendall(wfDataSend)
-            #         wfLock.release()
-        #
-        # except Exception, e:
-        #     print "[WF] exception: ", e
-        #     if wfSocket!= '':
-        #         wfSocket.close()
-        #     wfConnected = False
 
     def send_se(self):
         if not self.se.connected:
@@ -305,21 +269,6 @@ class Server:
 
 ####################################################################################################
 
-# declare buffers
-# bt_buff = queue.Queue()
-# se_buff = queue.Queue()
-
-# declare sockets
-# bt_socket = ""
-# wf_socket = ""
-# se_socket = ""
-
-# declare flag
-# bt_connected = False
-# wf_connected = False
-# se_connected = False
-
-
 # bt_receiver = threading.Thread(name="BTReceiver", target="")
 # wf_receiver_thread = threading.Thread(name="WFReceiver", target=connect_wf())
 # se_receiver_thread = threading.Thread(name="SEReceiver", target=connect_ser())
@@ -327,28 +276,17 @@ class Server:
 server = Server()
 
 wf_receiver_thread = threading.Thread(name="Wifi Receiver", target=server.receive_wf)
-se_receiver_thread = threading.Thread(name="Serial Receiver", target=server.receive_se)
+# se_receiver_thread = threading.Thread(name="Serial Receiver", target=server.receive_se)
 
 wf_receiver_thread.start()
-se_receiver_thread.start()
+# se_receiver_thread.start()
 
 
 while True:
     # print("[Thread] ", threading.current_thread())
-    # server.send_wf()
-    server.send_se()
+    server.send_wf()
+    # server.send_se()
     time.sleep(0)
-
-# while True:
-#     # server.send_se()
-#     server.send_wf()
-#     # server.receive_se()
-#     server.receive_wf()
-
-
-# while True:
-#    send_ser()
-#    send_wf()
 
 
 ####################################################################################################

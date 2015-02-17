@@ -202,9 +202,9 @@ class Server:
                         print("[WF] Wifi received: " + data_received.decode())
                         self.se_buffer.put(data_received.decode())
                         # For wifi testing
-                        self.wf_buffer.put("Receipt from RPi: " + data_received.decode())
-                        self.wf_buffer.put("Second receipt from Rpi: " + data_received.decode())
-                        self.wf_buffer.put("Third receipt from Rpi: " + data_received.decode())
+                        # self.wf_buffer.put("Receipt from RPi: " + data_received.decode())
+                        # self.wf_buffer.put("Second receipt from Rpi: " + data_received.decode())
+                        # self.wf_buffer.put("Third receipt from Rpi: " + data_received.decode())
 
             except Exception:
                 print("[Error] Wifi connection loss.")
@@ -223,8 +223,11 @@ class Server:
                 while True:
                     data_received = self.se.serial.readline()
                     if data_received:
-                        print("[SE] Serial received: " + data_received.decode())
-                    self.wf_buffer.put(data_received.decode())
+                        data_decoded = data_received.decode()
+                        print("[SE] Serial received: " + data_decoded)
+                        if '[Sensor] ' in data_decoded:
+                            data_to_send = data_decoded[9:]
+                            self.wf_buffer.put(data_to_send)
 
             except Exception:
                 print("[Error] Serial port connection loss.")

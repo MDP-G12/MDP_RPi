@@ -3,8 +3,7 @@
 # import for multi-threading
 import threading
 
-# import for bluetooth
-# from bluetooth import *
+from bluetooth import *
 
 # import for wifi socket
 import socket
@@ -182,13 +181,47 @@ class SEConnector:
         self.connected = True
 
 
+class BTConnector:
+    def __init__(self):
+        self.connected = False
+        self.client_socket = None
+        self.server_socket = None
+
+    def connect(self):
+        # Creating the server socket and bind to port
+        btport = 4
+        try:
+            self.server_socket = BluetoothSocket( RFCOMM )
+            self.server_socket.bind(("", btport))
+            self.server_socket.listen(1)	# Listen for requests
+            self.port = self.server_socket.getsockname()[1]
+            uuid = "00001101-0000-1000-8000-00805F9B34FB"
+
+            advertise_service( self.server_socket, "SampleServer",
+                               service_id = uuid,
+                               service_classes = [ uuid, SERIAL_PORT_CLASS ],
+                               profiles = [ SERIAL_PORT_PROFILE ],
+                                )
+            print("Waiting for connection on RFCOMM channel %d" % self.port)
+            # Accept requests
+            self.client_socket, client_address = self.server_socket.accept()
+            print("Accepted connection from ", client_address)
+            self.connected = True
+
+        except Exception:
+            print("Error address already in use")
+            self.close_bt_socket()
+            self.connect()
+
+
 class Server:
     def __init__(self):
         self.wf = WFConnector()
         self.se = SEConnector()
+        self.bt = BTConnector()
         self.wf_buffer = queue.Queue()
         self.se_buffer = queue.Queue()
-        # self.se_buffer.put("i")
+        self.bt_buffer = queue.Queue()
 
     def receive_wf(self):
         while True:
@@ -235,6 +268,20 @@ class Server:
                 self.se.connected = False
                 time.sleep(1)
 
+    def receive_bt(self):
+        while True:
+            try:
+                while not self.bt.connected:
+                    self.bt.connect()
+                while True:
+                    data_received = self.bt.client_socket.recv(1024)
+                    print("[BT] Bluetooth received: " + data_received)
+            except Exception:
+                print("[Error] Bluetooth connection loss.")
+                print(sys.exc_info())
+                self.bt.connected = False
+                # self.bt.connect()	# Reestablish connection
+
     def send_wf(self):
         if not self.wf.connected:
             return
@@ -268,35 +315,41 @@ class Server:
                     self.se.connected = False
                     # self.se_buffer.put(data_to_send)
 
-    # def send_data(self):
-    #     while True:
-    #         self.send_wf()
-    #         self.send_se()
-    #         time.sleep(0)
+    def send_bt(self):
+        if not server.bt.connected:
+            return
+        else:
+            while server.bt_buffer.qsize():
+                print("[BT] Ready to send data to Android N7.")
+            try:
+                data_to_send = self.bt_buffer.get()
+                print("[BT] Sending to Android N7: ", data_to_send)
+                self.bt.client_socket.send(str.encode(data_to_send))
+            except Exception:
+                print("[Error] Unable to send data through Bluetooth. Connection loss.")
+                print(sys.exc_info())
+                server.bt.connected = False
+                # self.bt.connect()	# Reestablish connection
+
 
 ####################################################################################################
-
-# bt_receiver = threading.Thread(name="BTReceiver", target="")
-# wf_receiver_thread = threading.Thread(name="WFReceiver", target=connect_wf())
-# se_receiver_thread = threading.Thread(name="SEReceiver", target=connect_ser())
 
 server = Server()
 
-wf_receiver_thread = threading.Thread(name="Wifi Receiver", target=server.receive_wf)
+# wf_receiver_thread = threading.Thread(name="Wifi Receiver", target=server.receive_wf)
 # se_receiver_thread = threading.Thread(name="Serial Receiver", target=server.receive_se)
+bt_receiver_thread = threading.Thread(name="Bluetooth Receiver", target=server.receive_bt)
 
-wf_receiver_thread.start()
+# wf_receiver_thread.start()
 # se_receiver_thread.start()
+bt_receiver_thread.start()
 
 
 while True:
+    i = input("Msg to send:")
+    server.bt_buffer.put(i)
     # print("[Thread] ", threading.current_thread())
-    print("")
     # server.send_se()
+    # server.send_wf()
+    server.send_bt()
     time.sleep(0)
-
-
-####################################################################################################
-#Arduino
-#reference: http://www.elcojacobs.com/communicating-between-python-and-arduino-with-pyserial/
-#to connect arduino via bluetooth we are using serial though I name it serSocket

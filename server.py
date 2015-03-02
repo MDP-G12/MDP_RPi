@@ -186,11 +186,15 @@ class BTConnector:
         self.connected = False
         self.client_socket = None
         self.server_socket = None
+        # self.socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
     def connect(self):
         # Creating the server socket and bind to port
         btport = 4
+        # mac_address = "08:60:6E:A4:CC:A0"
         try:
+            # self.socket.connect((mac_address, 1))
+            # print("Connected")
             self.server_socket = BluetoothSocket( RFCOMM )
             self.server_socket.bind(("", btport))
             self.server_socket.listen(1)	# Listen for requests
@@ -209,8 +213,9 @@ class BTConnector:
             self.connected = True
 
         except Exception:
-            print("Error address already in use")
-            self.close_bt_socket()
+            # print("Error address already in use")
+            # self.close_bt_socket()
+            print("[Error] ", sys.exc_info())
             self.connect()
 
 
@@ -222,6 +227,7 @@ class Server:
         self.wf_buffer = queue.Queue()
         self.se_buffer = queue.Queue()
         self.bt_buffer = queue.Queue()
+        self.bt_buffer.put("Hello from RPi.")
 
     def receive_wf(self):
         while True:
@@ -321,15 +327,15 @@ class Server:
         else:
             while server.bt_buffer.qsize():
                 print("[BT] Ready to send data to Android N7.")
-            try:
-                data_to_send = self.bt_buffer.get()
-                print("[BT] Sending to Android N7: ", data_to_send)
-                self.bt.client_socket.send(str.encode(data_to_send))
-            except Exception:
-                print("[Error] Unable to send data through Bluetooth. Connection loss.")
-                print(sys.exc_info())
-                server.bt.connected = False
-                # self.bt.connect()	# Reestablish connection
+                try:
+                    data_to_send = self.bt_buffer.get()
+                    print("[BT] Sending to Android N7: ", data_to_send)
+                    self.bt.client_socket.send(str.encode(data_to_send))
+                except Exception:
+                    print("[Error] Unable to send data through Bluetooth. Connection loss.")
+                    print(sys.exc_info())
+                    server.bt.connected = False
+                    # self.bt.connect()	# Reestablish connection
 
 
 ####################################################################################################

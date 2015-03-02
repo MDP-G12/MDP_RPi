@@ -1,14 +1,41 @@
 import serial
 import time
 
-socket = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-time.sleep(1)
-print 'start to communicate'
-socket.write("i")
+
+class SEConnector:
+    def __init__(self):
+        self.serial = None
+        self.connected = False
+        self.connect()
+
+    def connect(self):
+        try:
+            self.serial = serial.Serial('/dev/ttyACM0', 9600, timeout=2)
+            self.connected = True
+        except Exception:
+            try:
+                self.serial = serial.Serial('/dev/ttyACM1', 9600, timeout=2)
+                self.connected = True
+            except Exception:
+                print("[Error] Unable to connect. Reconnect in 2s.")
+                time.sleep(2)
+                self.connect()
+
+
+s = SEConnector()
+
 while 1:
-    data =  socket.readline()
-    if len(data) == 0:
-        print 'time_out'
+    i = input("Input a command: ")
+    try:
+        s.serial.write(str.encode(i))
+    except Exception:
+        print("[Error] Failed to send command. Reconnect in 1s.")
+        time.sleep(1)
+        s.connect()
     else:
-        print data
-        break
+        try:
+            print(s.serial.readline().decode())
+        except Exception:
+            print("[Error] Failed to send command. Reconnect in 1s.")
+            time.sleep(1)
+            s.connect()

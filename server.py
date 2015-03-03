@@ -184,38 +184,47 @@ class SEConnector:
 class BTConnector:
     def __init__(self):
         self.connected = False
+        # self.client_socket = None
+        # self.server_socket = None
+
+        # The MAC address of a Bluetooth adapter on the server. The server might have multiple Bluetooth adapters.
+        # To be updated
+        host_mac_address = "08:60:6E:A4:CC:A0"
+        port = 4   # 3 is an arbitrary choice. However, it must match the port used by the client.
+        backlog = 1
+        # Creating the server socket and bind to port
+        self.server_socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+        self.server_socket.bind((host_mac_address, port))
+        self.server_socket.listen(backlog)
+
         self.client_socket = None
-        self.server_socket = None
-        # self.socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
     def connect(self):
-        # Creating the server socket and bind to port
-        btport = 4
-        # mac_address = "08:60:6E:A4:CC:A0"
         try:
-            # self.socket.connect((mac_address, 1))
-            # print("Connected")
-            self.server_socket = BluetoothSocket( RFCOMM )
-            self.server_socket.bind(("", btport))
-            self.server_socket.listen(1)	# Listen for requests
-            self.port = self.server_socket.getsockname()[1]
-            uuid = "00001101-0000-1000-8000-00805F9B34FB"
-
-            advertise_service( self.server_socket, "SampleServer",
-                               service_id = uuid,
-                               service_classes = [ uuid, SERIAL_PORT_CLASS ],
-                               profiles = [ SERIAL_PORT_PROFILE ],
-                                )
-            print("Waiting for connection on RFCOMM channel %d" % self.port)
-            # Accept requests
-            self.client_socket, client_address = self.server_socket.accept()
-            print("Accepted connection from ", client_address)
-            self.connected = True
+            self.client_socket, address = self.server_socket.accept()
+            print("[Info] Bluetooth Connected!")
+            # self.server_socket = BluetoothSocket( RFCOMM )
+            # self.server_socket.bind(("", btport))
+            # self.server_socket.listen(1)	# Listen for requests
+            # self.port = self.server_socket.getsockname()[1]
+            # uuid = "00001101-0000-1000-8000-00805F9B34FB"
+            #
+            # advertise_service( self.server_socket, "SampleServer",
+            #                    service_id = uuid,
+            #                    service_classes = [ uuid, SERIAL_PORT_CLASS ],
+            #                    profiles = [ SERIAL_PORT_PROFILE ],
+            #                     )
+            # print("Waiting for connection on RFCOMM channel %d" % self.port)
+            # # Accept requests
+            # self.client_socket, client_address = self.server_socket.accept()
+            # print("Accepted connection from ", client_address)
+            # self.connected = True
 
         except Exception:
             # print("Error address already in use")
             # self.close_bt_socket()
             print("[Error] ", sys.exc_info())
+            time.sleep(3)
             self.connect()
 
 

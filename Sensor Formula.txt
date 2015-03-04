@@ -1,0 +1,9 @@
+Based on out-0304-1.txt
+
+Left
+	Mean:	3301.6 * x ^ -0.916
+	Median:	3395.6 * x ^ -0.921
+
+Right
+	Mean:	11606 * x ^ -1.118
+	Median:	11464 * x ^ -1.116

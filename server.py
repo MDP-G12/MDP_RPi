@@ -169,7 +169,7 @@ class SEConnector:
         # del serBuff[:]
         try:
             self.serial = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-            self.serial.write(str.encode("i"))
+            # self.serial.write(str.encode("i"))
         except Exception:
             try:
                 self.serial = serial.Serial('/dev/ttyACM1', 9600, timeout=1)
@@ -201,7 +201,7 @@ class BTConnector:
             self.port = self.server_socket.getsockname()[1]
             uuid = "00001101-0000-1000-8000-00805F9B34FB"
 
-            advertise_service( self.server_socket, "SampleServer",
+            advertise_service( self.server_socket, "MDPServer",
                                service_id = uuid,
                                service_classes = [ uuid, SERIAL_PORT_CLASS ],
                                profiles = [ SERIAL_PORT_PROFILE ],
@@ -280,7 +280,9 @@ class Server:
                 while not self.bt.connected:
                     self.bt.connect()
                 while True:
-                    data_received = self.bt.client_socket.recv(1024)
+                    data_received = self.bt.client_socket.recv(1024).decode()
+                    if len(data_received) == 0:
+                        return
                     print("[BT] Bluetooth received: " + data_received)
             except Exception:
                 print("[Error] Bluetooth connection loss.")
